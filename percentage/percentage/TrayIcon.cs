@@ -160,12 +160,5 @@ namespace percentage
 
             return bitmapText;
         }
-
-        private static SizeF GetImageSize(string text, Font font)
-        {
-            using (Image image = new Bitmap(1, 1))
-            using (Graphics graphics = Graphics.FromImage(image))
-                return graphics.MeasureString(text, font);
-        }
     }
 }
