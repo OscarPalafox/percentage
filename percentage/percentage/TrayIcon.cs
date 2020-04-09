@@ -1,9 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Drawing;
-using System.Management;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using Topshelf.Runtime.Windows;
+using System.IO;
 
 namespace percentage
 {
@@ -41,24 +41,27 @@ namespace percentage
             notifyIcon.Visible = true;
 
             Timer timer = new Timer();
-            timer.Tick += new EventHandler(timer_Tick);
+            timer.Tick += new EventHandler(timerTick);
             timer.Interval = refreshInterval;
             timer.Start();
         }
 
-        private void timer_Tick(object sender, EventArgs e)
+        private void timerTick(object sender, EventArgs e)
         {
             PowerStatus powerStatus = SystemInformation.PowerStatus;
             float batteryPercentageFloat = powerStatus.BatteryLifePercent * 100;
+            //float batteryPercentageFloat = 100;
             batteryPercentage = batteryPercentageFloat.ToString();
             
             BatteryChargeStatus chargeStatus = SystemInformation.PowerStatus.BatteryChargeStatus;
             bool fullyCharged = (powerStatus.BatteryLifePercent == 1.0);
             bool charging = chargeStatus.HasFlag(BatteryChargeStatus.Charging);
             bool noBattery = chargeStatus.HasFlag(BatteryChargeStatus.NoSystemBattery);
+            bool critical = chargeStatus.HasFlag(BatteryChargeStatus.Critical);
 
             PowerLineStatus powerLineStatus = SystemInformation.PowerStatus.PowerLineStatus;
             bool pluggedIn = (powerLineStatus == PowerLineStatus.Online);
+
 
             Color fontColor = Color.White;
             if (!noBattery)
@@ -69,7 +72,14 @@ namespace percentage
                 }
                 else if (batteryPercentageFloat <= 40)
                 {
-                    fontColor = Color.Red;
+                    if (critical)
+                    {
+                        fontColor = Color.Red;
+                    }
+                    else
+                    {
+                        fontColor = Color.Orange;
+                    }
 
                 }
             }
