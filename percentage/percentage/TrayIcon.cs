@@ -2,8 +2,6 @@
 using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
-using Topshelf.Runtime.Windows;
-using System.IO;
 
 namespace percentage
 {
@@ -12,8 +10,7 @@ namespace percentage
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         static extern bool DestroyIcon(IntPtr handle);
 
-        private const string iconFont = "Segoe UI";
-        private const int iconFontSize = 14;
+        private const string iconFont = "Tahoma";
 
         private string batteryPercentage;
         private NotifyIcon notifyIcon;
@@ -32,7 +29,7 @@ namespace percentage
 
             // initialize menuItem
             menuItem.Text = "Exit";
-            menuItem.Click += new System.EventHandler(menuItem_Click);
+            menuItem.Click += new EventHandler(menuItem_Click);
 
             notifyIcon.ContextMenu = contextMenu;
 
@@ -50,7 +47,6 @@ namespace percentage
         {
             PowerStatus powerStatus = SystemInformation.PowerStatus;
             float batteryPercentageFloat = powerStatus.BatteryLifePercent * 100;
-            //float batteryPercentageFloat = 100;
             batteryPercentage = batteryPercentageFloat.ToString();
             
             BatteryChargeStatus chargeStatus = SystemInformation.PowerStatus.BatteryChargeStatus;
@@ -84,9 +80,9 @@ namespace percentage
                 }
             }
 
-            using (Bitmap bitmap = new Bitmap(DrawText(batteryPercentage, new Font(iconFont, iconFontSize), fontColor, Color.Transparent)))
+            using (Bitmap bitmap = new Bitmap(DrawText(batteryPercentage, new Font(iconFont, batteryPercentage == "100" ? 20 : 24, FontStyle.Regular, GraphicsUnit.Pixel), fontColor, Color.Transparent)))
             {
-                System.IntPtr intPtr = bitmap.GetHicon();
+                IntPtr intPtr = bitmap.GetHicon();
                 try
                 {
                     using (Icon icon = Icon.FromHandle(intPtr))
@@ -147,22 +143,22 @@ namespace percentage
 
         private Image DrawText(String text, Font font, Color textColor, Color backColor)
         {
-            var textSize = GetImageSize(text, font);
-            Image image = new Bitmap((int) textSize.Width, (int) textSize.Height);
-            using (Graphics graphics = Graphics.FromImage(image))
+            Bitmap bitmapText = new Bitmap(32, 32);
+            Graphics g = Graphics.FromImage(bitmapText);
+
+            using (SolidBrush brush = new SolidBrush(backColor))
             {
-                // paint the background
-                graphics.Clear(backColor);
-
-                using (Brush textBrush = new SolidBrush(textColor))
-                {
-                    graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
-                    graphics.DrawString(text, font, textBrush, 0, 0);
-                    graphics.Save();
-                }
+                g.FillRectangle(brush, 0, 0, 32, 32);
             }
+            
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.SingleBitPerPixelGridFit;
+            StringFormat sf = new StringFormat();
+            sf.Alignment = StringAlignment.Center;
+            sf.LineAlignment = StringAlignment.Center;
+            g.DrawString(text, font, new SolidBrush(textColor), new Rectangle(-6, 2, 42, 32), sf);
 
-            return image;
+
+            return bitmapText;
         }
 
         private static SizeF GetImageSize(string text, Font font)
