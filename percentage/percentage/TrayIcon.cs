@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.Management;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
@@ -15,6 +17,7 @@ namespace percentage
 
         private string batteryPercentage;
         private NotifyIcon notifyIcon;
+        private int refreshInterval = 1000;
 
         public TrayIcon()
         {
@@ -26,9 +29,9 @@ namespace percentage
             // initialize contextMenu
             contextMenu.MenuItems.AddRange(new MenuItem[] { menuItem });
 
+
             // initialize menuItem
-            menuItem.Index = 0;
-            menuItem.Text = "E&xit";
+            menuItem.Text = "Exit";
             menuItem.Click += new System.EventHandler(menuItem_Click);
 
             notifyIcon.ContextMenu = contextMenu;
@@ -39,16 +42,31 @@ namespace percentage
 
             Timer timer = new Timer();
             timer.Tick += new EventHandler(timer_Tick);
-            timer.Interval = 1000; // in miliseconds
+            timer.Interval = refreshInterval;
             timer.Start();
         }
 
         private void timer_Tick(object sender, EventArgs e)
         {
             PowerStatus powerStatus = SystemInformation.PowerStatus;
-            batteryPercentage = (powerStatus.BatteryLifePercent * 100).ToString();
+            float batteryPercentageInt = powerStatus.BatteryLifePercent * 100;
+            batteryPercentage = batteryPercentageInt.ToString();
+            
+            BatteryChargeStatus chargeStatus = SystemInformation.PowerStatus.BatteryChargeStatus;
+            bool charging = chargeStatus.HasFlag(BatteryChargeStatus.Charging);
 
-            using (Bitmap bitmap = new Bitmap(DrawText(batteryPercentage, new Font(iconFont, iconFontSize), Color.White, Color.Black)))
+            Color fontColor = Color.White;
+            if (charging)
+            {
+                fontColor = Color.Lime;
+            }
+            else if (batteryPercentageInt <= 40)
+            {
+                fontColor = Color.Red;
+
+            }
+
+            using (Bitmap bitmap = new Bitmap(DrawText(batteryPercentage, new Font(iconFont, iconFontSize), fontColor, Color.Transparent)))
             {
                 System.IntPtr intPtr = bitmap.GetHicon();
                 try
@@ -57,6 +75,19 @@ namespace percentage
                     {
                         notifyIcon.Icon = icon;
                         notifyIcon.Text = batteryPercentage + "%";
+
+                        if (!charging)
+                        {
+                            int seconds = SystemInformation.PowerStatus.BatteryLifeRemaining;
+                            int mins = seconds / 60;
+                            int hours = mins / 60;
+                            mins = mins % 60;
+                            notifyIcon.Text += " " + hours + ":" + mins + " remaining";
+                        }
+                        else
+                        {
+                            notifyIcon.Text = "Charging";
+                        }
                     }
                 }
                 finally
@@ -82,10 +113,9 @@ namespace percentage
                 // paint the background
                 graphics.Clear(backColor);
 
-                // create a brush for the text
                 using (Brush textBrush = new SolidBrush(textColor))
                 {
-                    graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+                    graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
                     graphics.DrawString(text, font, textBrush, 0, 0);
                     graphics.Save();
                 }
