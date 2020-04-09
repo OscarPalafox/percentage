@@ -49,21 +49,29 @@ namespace percentage
         private void timer_Tick(object sender, EventArgs e)
         {
             PowerStatus powerStatus = SystemInformation.PowerStatus;
-            float batteryPercentageInt = powerStatus.BatteryLifePercent * 100;
-            batteryPercentage = batteryPercentageInt.ToString();
+            float batteryPercentageFloat = powerStatus.BatteryLifePercent * 100;
+            batteryPercentage = batteryPercentageFloat.ToString();
             
             BatteryChargeStatus chargeStatus = SystemInformation.PowerStatus.BatteryChargeStatus;
+            bool fullyCharged = (powerStatus.BatteryLifePercent == 1.0);
             bool charging = chargeStatus.HasFlag(BatteryChargeStatus.Charging);
+            bool noBattery = chargeStatus.HasFlag(BatteryChargeStatus.NoSystemBattery);
+
+            PowerLineStatus powerLineStatus = SystemInformation.PowerStatus.PowerLineStatus;
+            bool pluggedIn = (powerLineStatus == PowerLineStatus.Online);
 
             Color fontColor = Color.White;
-            if (charging)
+            if (!noBattery)
             {
-                fontColor = Color.Lime;
-            }
-            else if (batteryPercentageInt <= 40)
-            {
-                fontColor = Color.Red;
+                if (charging || (pluggedIn && fullyCharged))
+                {
+                    fontColor = Color.Lime;
+                }
+                else if (batteryPercentageFloat <= 40)
+                {
+                    fontColor = Color.Red;
 
+                }
             }
 
             using (Bitmap bitmap = new Bitmap(DrawText(batteryPercentage, new Font(iconFont, iconFontSize), fontColor, Color.Transparent)))
@@ -73,21 +81,44 @@ namespace percentage
                 {
                     using (Icon icon = Icon.FromHandle(intPtr))
                     {
-                        notifyIcon.Icon = icon;
-                        notifyIcon.Text = batteryPercentage + "%";
-
-                        if (!charging)
+                        string description = "";
+                        
+                        if (noBattery)
                         {
-                            int seconds = SystemInformation.PowerStatus.BatteryLifeRemaining;
-                            int mins = seconds / 60;
-                            int hours = mins / 60;
-                            mins = mins % 60;
-                            notifyIcon.Text += " " + hours + ":" + mins + " remaining";
+                            description = "No Battery Detected";
+                        }
+                        else if (pluggedIn)
+                        {
+                            if (charging)
+                            {
+                                description = string.Format("Charging ({0}%)", batteryPercentage);
+                            }
+                            else if (fullyCharged)
+                            {
+                                description = string.Format("Fully Charged ({0}%)", batteryPercentage);
+                            }
+                            else
+                            {
+                                description = string.Format("Not Charging ({0}%)", batteryPercentage);
+                            }
                         }
                         else
                         {
-                            notifyIcon.Text = "Charging";
+                            int totalRemaining = SystemInformation.PowerStatus.BatteryLifeRemaining;
+                            
+                            if (totalRemaining > 0)
+                            {
+                                TimeSpan timeSpan = TimeSpan.FromSeconds(totalRemaining);
+                                description = string.Format("{0} hr {1:D2} min remaining", timeSpan.Hours, timeSpan.Minutes);
+                            }
+                            else
+                            {
+                                description = string.Format("{0}% remaining", batteryPercentage);
+                            }
                         }
+
+                        notifyIcon.Icon = icon;
+                        notifyIcon.Text = description;
                     }
                 }
                 finally
